@@ -189,6 +189,54 @@ time{display:block;font-size:13px;color:var(--meta);margin-top:4px}
  <nav class="fnav"><a href="https://www.leparisien.fr/video/">Vidéo</a><a href="https://www.leparisien.fr/podcasts/">Podcasts</a><a href="https://www.leparisien.fr/jeux/">Jeux</a><a href="https://www.kiosque.leparisien.fr/">Journal</a><a href="https://abonnement.leparisien.fr/hors-serie/">Hors-séries <em>Nouveau</em></a></nav>
  <nav class="fdeps"><a href="https://www.leparisien.fr/paris-75/">75 · Paris</a><a href="https://www.leparisien.fr/essonne-91/">91 · Essonne</a><a href="https://www.leparisien.fr/hauts-de-seine-92/">92 · Hauts-de-Seine</a><a href="https://www.leparisien.fr/seine-saint-denis-93/">93 · Seine-Saint-Denis</a><a href="https://www.leparisien.fr/val-de-marne-94/">94 · Val-de-Marne</a><a href="https://www.leparisien.fr/val-d-oise-95/">95 · Val-d’Oise</a><a href="https://www.leparisien.fr/seine-et-marne-77/">77 · Seine-et-Marne</a><a href="https://www.leparisien.fr/yvelines-78/">78 · Yvelines</a><a href="https://www.leparisien.fr/oise-60/">60 · Oise</a></nav>
 </div></footer>
+<!-- VVS referrer exception: the page keeps <meta name="referrer" content="no-referrer">;
+     requests to Dailymotion/VVS hosts (dailymotion.com, dmcdn.net, dmvs-apac.com) use no-referrer-when-downgrade. -->
+<script id="vvs-referrer-exception">
+(function () {
+  var POLICY = "no-referrer-when-downgrade";
+  var DM_HOSTS = /(^|\.)(dailymotion\.com|dmcdn\.net|dmvs-apac\.com)$/i;
+  function isDm(url) {
+    try { return DM_HOSTS.test(new URL(String(url), document.baseURI).hostname); } catch (e) { return false; }
+  }
+  function mark(el, url) {
+    if (isDm(url)) { try { el.referrerPolicy = POLICY; } catch (e) {} }
+  }
+  var targets = [
+    [window.HTMLIFrameElement, "src"],
+    [window.HTMLScriptElement, "src"],
+    [window.HTMLImageElement, "src"],
+    [window.HTMLLinkElement, "href"]
+  ];
+  targets.forEach(function (t) {
+    var C = t[0], prop = t[1];
+    if (!C) return;
+    var d = Object.getOwnPropertyDescriptor(C.prototype, prop);
+    if (!d || !d.set) return;
+    Object.defineProperty(C.prototype, prop, {
+      configurable: true,
+      enumerable: d.enumerable,
+      get: d.get,
+      set: function (v) { mark(this, v); d.set.call(this, v); }
+    });
+  });
+  var nativeSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    var n = String(name).toLowerCase();
+    if ((n === "src" || n === "href") && "referrerPolicy" in this) mark(this, value);
+    return nativeSetAttribute.apply(this, arguments);
+  };
+  var nativeFetch = window.fetch;
+  if (nativeFetch) {
+    window.fetch = function (input, init) {
+      var url = typeof input === "string" ? input : (input && input.url) || String(input);
+      if (isDm(url) && !(init && init.referrerPolicy)) {
+        init = Object.assign({}, init, { referrerPolicy: POLICY });
+      }
+      return nativeFetch.call(this, input, init);
+    };
+  }
+})();
+</script>
 <!-- VVS 3.0 script (staging) -->
-<script src="https://staging.dmvs-apac.com/vertical-video-story/vv-stories.min.js"></script>
+<script src="https://staging.dmvs-apac.com/vertical-video-story/vv-stories.min.js" referrerpolicy="no-referrer-when-downgrade"></script>
 </body></html>
